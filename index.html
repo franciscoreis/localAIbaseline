@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <link rel="icon" href="data:,">
+
+<style>
+
+    td{text-align: center;vertical-align: center}
+    img{vertical-align: center}
+
+
+</style>
+
+<script>
+
+	var cdniverse = "https://storage.googleapis.com/cdniverse/"
+
+
+
+    async function afterLoad()
+    {
+
+       const {
+                default: LocalAIbaseline,
+                } = await import(
+                    "./localAIbaseline.mjs" // or https://localaibaseline.com/localAIbaseline.mjs
+
+                )
+
+        window.LocalAIbaseline = LocalAIbaseline
+
+        //IMPORTANT DOM ELEMENT ID: <div id="localAIbaseline_mainTable"></div>
+        window.LocalAIbaseline.update_localAIbaseline_mainTable()
+
+    }
+
+
+    //implemented when needed
+    function TLtranslateFromTo(s)
+    {
+        return s
+    }
+
+
+</script>
+
+</head>
+
+
+
+<body onload='afterLoad()' style='font-family:sans-serif;font-style:normal'>
+<center>
+    <br>
+    <img src="https://storage.googleapis.com/cdniverse/LocalAIbaseline/images/localaibaseline_logo_494x168.jpg" style="aspect-ratio:507/168;width:95%;max-width:450px">
+    <br>
+    <br>
+    <font style='font-size:22px;letter-spacing:5px'>browser compatibility grid</font>
+    <br>
+    <br>
+    <br>
+    <div id="localAIbaseline_mainTable"></div>
+    <br>
+    <br>
+    <table style="width:95%;max-width:507px;border:1px solid #000"><tr><th>partner sites</th><th>use data</th><th>contribute</th></tr>
+        <tr><td style="height:40px"><a target="_blank" href="https://chatplaces.org"><img src="https://storage.googleapis.com/cdniverse/ChatPlaces/chatplaces_text.svg" style="max-height:20px"></a></td><td>yes</td><td>yes</td></tr>
+    </table>
+    <br>
+    <br>
+    <button onClick='window.LocalAIbaseline.hello()'>&nbsp; test &nbsp;</button>
+    <br>&nbsp;
+</center>
+</body>
+
+</html>
