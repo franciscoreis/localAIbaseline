@@ -31,6 +31,7 @@
 
         window.LocalAIbaseline = LocalAIbaseline
 
+        document.getElementById("localAIbaselineFeaturesTable").innerHTML = await window.LocalAIbaseline.baselineTableWithFeaturesHTML()
         //IMPORTANT DOM ELEMENT ID: <div id="localAIbaseline_mainTable"></div>
         window.LocalAIbaseline.update_localAIbaseline_mainTable()
 
@@ -60,6 +61,8 @@
     <br>
     <br>
     <br>
+    <div id="localAIbaselineFeaturesTable"></div>
+    <br><br>
     <div id="localAIbaseline_mainTable"></div>
     <br>
     <br>

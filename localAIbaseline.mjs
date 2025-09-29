@@ -2,6 +2,58 @@
 
 var cdniverse = "https://storage.googleapis.com/cdniverse/" //const may conflict
 
+const mapBrowsertoObject = new Map(
+        [
+          ["chrome", {name: "Chrome Desktop"}]
+          ,["chrome_android", {name: "Chrome Mobile"}]
+          ,["edge", {name: "Microsoft Edge"}]
+          ,["firefox", {name: "Firefox Desktop"}]
+          ,["firefox_android", {name: "Firefox Mobile"}]
+          ,["safari", {name: "Safari Desktop"}]
+          ,["safari_ios", {name: "Safari Mobile"}]
+        ])
+
+// FIND FEATURES: https://github.com/web-platform-dx/web-features-explorer/blob/main/additional-data/wpt.json
+// FIND NEW FEATURES https://github.com/web-platform-dx/web-features-explorer/blob/main/additional-data/origin-trials.json
+const mapIDtoObject = new Map(
+        [
+            //1. Run compute efficiently (GPU/CPU/NN accelerators)
+          ["webgpu", {group: 1, name: "WebGPU", description: "the main API for running ML inference efficiently on modern GPUs."}]
+          ,["webgl2", {group: 1, name: "WebGL2", description: "fallback for models that still use shaders for compute"}]
+          ,["wasm-simd", {group: 1, name: "WebAssembly", description: "portable CPU execution for ML models"}]
+          ,["wasm-threads", {group: 1, name: "WebAssembly Threads", description: "parallelize model execution"}]
+          ,["webnn", {group: 1, name: "WebNN API", description: "direct mapping to device neural accelerators"}]
+            //2. Handle model files and storage
+          ,["streams", {group: 2, name: "Streams API", description: "progressively load large model files"}]
+          ,["readable-byte-streams", {group: 2, name: "Fetch with ReadableStream", description: "stream weights from network"}]
+          ,["file-system-access", {group: 2, name: "File System Access API (OPFS)", description: "store models locally for offline use"}]
+          ,["indexeddb", {group: 2, name: "IndexedDB", description: "persistent structured storage of model data"}]
+            //3. Work with media input/output
+          ,["media-source", {group: 3, name: "MediaDevices / getUserMedia", description: "access microphone and camera for input"}]
+          ,["web-audio", {group: 3, name: "Web Audio API", description: "process audio for speech recognition or TTS"}]
+          ,["webcodecs", {group: 3, name: "WebCodecs", description: "efficient video decoding/encoding, useful for vision models"}]
+          ,["webrtc", {group: 3, name: "WebRTC", description: "real-time media streaming"}]
+            //4. Performance & memory
+          ,["shared-memory", {group: 4, name: "SharedArrayBuffer", description: "enables high-performance multithreading for ML runtimes"}]
+          ,["atomics-wait-async", {group: 4, name: "Atomics", description: "synchronization in WASM multi-threaded inference"}]
+          ,["transferable-arraybuffer", {group: 4, name: "Large Blob / ArrayBuffer handling", description: "to load big models"}]
+            //5. Security / isolation
+          ,["isolation", {group: 5, name: "Cross-Origin Isolation", description: "prerequisite for SharedArrayBuffer"}]
+          ,["is-secure-context", {group: 5, name: "Secure Contexts (HTTPS)", description: "required for WebGPU, getUserMedia, WebNN, etc"}]
+        ]
+)
+
+const groupsOfFeatures = [""
+                    , "Run compute efficiently (GPU/CPU/NN accelerators)"
+                    , "Handle model files and storage"
+                    , "Work with media input/output"
+                    , "Performance & memory"
+                    , "Security / isolation"
+                    ]
+
+
+
+const statusToColor = new Map([['available', '#0f0']])
 
 function hello()
 {
@@ -31,12 +83,83 @@ function formatBytes(bytes, decimals = 2)
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 }
 
+function browserImage(browser, height = "30px")
+{
+    const object = mapBrowsertoObject.get(browser)
+    return object.imageURL ? "<img src='https://localaibaseline.com/icons/"+object.imageURL+"' style='height:"+height+"'>" : "";
+}
 
+//-----------------------------------------------------------------
+async function baselineTableWithFeaturesHTML()
+{
+
+  //  WebGPU
+
+//const query = encodeURIComponent('-baseline_status:limited');
+//const query = encodeURIComponent('id:grid');
+let query = ""
+for(let [id, object] of mapIDtoObject)
+    query += " OR id:" + id
+
+query = encodeURIComponent(query.slice(4))
+
+let url = `https://api.webstatus.dev/v1/features?q=${query}`;
+const response = await fetch(url);
+
+if (response.ok)
+  {
+  const { data } = await response.json();
+
+  let s = "<table border='1'><tr><th>features / browsers</th>"
+      for(let [browser, object] of mapBrowsertoObject)
+        s += "<th title='" + browser + " - " + object.name + "'>"+ (browserImage(browser) || object.name.replaceAll(" ", "<br>")) +"</th>"
+      s += "</tr>"
+
+  let mapFeatureToDataLine = new Map()
+  for (let feature of data)
+      mapFeatureToDataLine.set(feature.feature_id, feature)
+
+  let group
+  for(let [id, object] of mapIDtoObject)
+  {
+  const feature = mapFeatureToDataLine.get(id)
+  if(!feature)
+  {
+      s += "<div style='color:red'>UNKNOWN FEATURE: " + id + "</div>"
+      continue
+  }
+
+  if(group !== object.group)
+      s += "<tr><td colspan='"+ (1 + mapBrowsertoObject.size) +"'><i> " + groupsOfFeatures[object.group] +"<i></td></tr>"
+  group = object.group
+
+  s += "<tr><td title='" + object.description + "'>" + feature.name + "</td>"
+      for(let browser in feature.browser_implementations)
+        if(!mapBrowsertoObject.get(browser))
+          s += "<div style='color:red'>UNKNOWN BROWSER: " + browser + "</div>"
+
+      for(let [browser, object] of mapBrowsertoObject)
+      {
+          const value = feature.browser_implementations && feature.browser_implementations[browser]
+          s += value
+              ? "<td style='background-color:" + (statusToColor.get(value.status) || value.status) + "' title='"+browser + " " + value.date + "'>" + value.version + "</td>"
+              : "<td></td>"
+      }
+  s += "</tr>"
+  }
+
+  s += "</table>"
+
+  return s
+  }
+else return "FAILED: baseline_status:limited"
+
+
+}
 //-----------------------------------------------------------------
 function update_localAIbaseline_mainTable(numView = 0)
 {
     let s = menuSelectModelType(numView)
-
 
     document.getElementById("localAIbaseline_mainTable").innerHTML = s
 
@@ -784,6 +907,7 @@ MyLLMroot.initialize()
 
 const LocalAIbaseline = {
     hello,
+    baselineTableWithFeaturesHTML,
     update_localAIbaseline_mainTable,
     MyLLMroot,
 }
