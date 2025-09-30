@@ -2,6 +2,8 @@
 
 var cdniverse = "https://storage.googleapis.com/cdniverse/" //const may conflict
 
+var dataBaseline
+
 const mapBrowsertoObject = new Map(
         [
           ["chrome", {name: "Chrome Desktop"}]
@@ -53,7 +55,9 @@ const groupsOfFeatures = [""
 
 
 
-const statusToColor = new Map([['available', '#0f0']])
+const statusToColor = new Map([['available', '#0f0'],['other','#fff']])
+const baselineStatusToColor = new Map([['widely', '#dfd'], ['limited', '#ffc'], ['newly', '#fdd']])
+
 
 function hello()
 {
@@ -90,69 +94,137 @@ function browserImage(browser, height = "30px")
 }
 
 //-----------------------------------------------------------------
-async function baselineTableWithFeaturesHTML()
+async function baselineTableWithFeaturesHTML(numView) {
+document.getElementById("localAIbaselineFeaturesTable").innerHTML = await baselineTableWithFeaturesHTML_REALLY(numView)
+}
+//-----------------------------------------------------------------
+async function baselineTableWithFeaturesHTML_REALLY(numView = 1)
 {
 
-  //  WebGPU
+    //  WebGPU
 
 //const query = encodeURIComponent('-baseline_status:limited');
 //const query = encodeURIComponent('id:grid');
-let query = ""
-for(let [id, object] of mapIDtoObject)
-    query += " OR id:" + id
+    let query = ""
+    for (let [id, object] of mapIDtoObject)
+        query += " OR id:" + id
 
-query = encodeURIComponent(query.slice(4))
+    query = encodeURIComponent(query.slice(4))
 
-let url = `https://api.webstatus.dev/v1/features?q=${query}`;
-const response = await fetch(url);
+    let url = `https://api.webstatus.dev/v1/features?q=${query}`
+    const response = await fetch(url);
 
-if (response.ok)
-  {
-  const { data } = await response.json();
+    if (!response.ok)
+        return "FAILED: baseline_status:limited"
 
-  let s = "<table border='1'><tr><th>features / browsers</th>"
-      for(let [browser, object] of mapBrowsertoObject)
-        s += "<th title='" + browser + " - " + object.name + "'>"+ (browserImage(browser) || object.name.replaceAll(" ", "<br>")) +"</th>"
-      s += "</tr>"
+    if (!dataBaseline)
+    {
+        const { data } = await response.json()
+        dataBaseline = data
+    }
+
+   let s = ""
+
+   const titles = ["browsers", "AI engines", "AI models"]
+   for(let n = 0; n < titles.length; n++)
+        s += "<label> &nbsp; <input onClick='window.LocalAIbaseline.baselineTableWithFeaturesHTML(" + n + ")' type='radio' "+ (numView === n ? "checked" : "") +" name='radios_features_engines_models' style='margin-bottom:6px'>&nbsp;" + TLtranslateFromTo(titles[n]) + "&nbsp;</label>"
+
+   let numCols
+   switch (numView)
+   {
+       case 0:
+          numCols = mapBrowsertoObject.size
+          s += "<table border='1'><tr><th>features / browsers</th>"
+
+          for(let [browser, object] of mapBrowsertoObject)
+            s += "<th title='" + browser + " - " + object.name + "'>"+ (browserImage(browser) || object.name.replaceAll(" ", "<br>")) +"</th>"
+          s += "</tr>"
+          break
+       case 1:
+           numCols = MyLLMroot.mapMyLLMs.size
+               s += "<table border='1'><tr>"
+                + "<td rowspan=2>" + TLtranslateFromTo("features") + " / " + TLtranslateFromTo("engines") + "</td>"
+            for (let [name, llm] of MyLLMroot.mapMyLLMs)
+                s += "<td class='table_with_all_llm_" + llm.uniqueID + "' style='background-color:" + llm.rowColor() + "'>" + llm.localORcloudORsharedAIicon("24px") + "</td>"
+            s += "</tr><tr>"
+            for (let [name, llm] of MyLLMroot.mapMyLLMs)
+                s += "<td class='table_with_all_llm_" + llm.uniqueID + "' style='background-color:" + llm.rowColor() + llm.addToBackgroundImage() + "'>" + llm.icon("25px") + "</td>"
+            s += "</tr>"
+           break
+       case 2:
+            numCols = ModelNameLLM.mapNameToModels.size
+            s += "<table border='1'><tr>"
+                + "<td>" + TLtranslateFromTo("features") + " / " + TLtranslateFromTo("models") + "</td>"
+            for (let [name, modelOfMyLLM] of ModelNameLLM.mapNameToModels)
+                s += "<td>" + modelOfMyLLM.icon("25px") + "</td>"
+            s += "</tr>"
+
+           break
+   }
 
   let mapFeatureToDataLine = new Map()
-  for (let feature of data)
+  for (let feature of dataBaseline)
       mapFeatureToDataLine.set(feature.feature_id, feature)
 
   let group
   for(let [id, object] of mapIDtoObject)
   {
-  const feature = mapFeatureToDataLine.get(id)
-  if(!feature)
-  {
-      s += "<div style='color:red'>UNKNOWN FEATURE: " + id + "</div>"
-      continue
-  }
-
-  if(group !== object.group)
-      s += "<tr><td colspan='"+ (1 + mapBrowsertoObject.size) +"'><i> " + groupsOfFeatures[object.group] +"<i></td></tr>"
-  group = object.group
-
-  s += "<tr><td title='" + object.description + "'>" + feature.name + "</td>"
-      for(let browser in feature.browser_implementations)
-        if(!mapBrowsertoObject.get(browser))
-          s += "<div style='color:red'>UNKNOWN BROWSER: " + browser + "</div>"
-
-      for(let [browser, object] of mapBrowsertoObject)
-      {
-          const value = feature.browser_implementations && feature.browser_implementations[browser]
-          s += value
-              ? "<td style='background-color:" + (statusToColor.get(value.status) || value.status) + "' title='"+browser + " " + value.date + "'>" + value.version + "</td>"
-              : "<td></td>"
+      const feature = mapFeatureToDataLine.get(id)
+      if (!feature) {
+          s += "<div style='color:red'>UNKNOWN FEATURE: " + id + "</div>"
+          continue
       }
-  s += "</tr>"
-  }
 
+      if (group !== object.group)
+          s += "<tr><td colspan='" + (1 + numCols) + "'><i> " + groupsOfFeatures[object.group] + "<i></td></tr>"
+      group = object.group
+      const baseline_color = baselineStatusToColor.get(feature.baseline.status)
+      if (baseline_color === undefined)
+          s += "<div style='color:red'>UNKNOWN BASELINE STATUS: " + feature.baseline.status + "</div>"
+
+      s += "<tr><td title='" + object.description + "' style='background-color:" + (baseline_color || "#fff") + "'>" + feature.name + "</td>"
+
+      switch (numView)
+      {
+          case 0:
+              for (let browser in feature.browser_implementations)
+                  if (!mapBrowsertoObject.get(browser))
+                      s += "<div style='color:red'>UNKNOWN BROWSER: " + browser + "</div>"
+
+              for (let [browser, object] of mapBrowsertoObject)
+              {
+                  const value = feature.browser_implementations && feature.browser_implementations[browser]
+                  s += value
+                      ? "<td style='background-color:" + (statusToColor.get(value.status) || value.status) + "' title='" + browser + " " + value.date + "'>" + value.version + "</td>"
+                      : "<td></td>"
+              }
+              break;
+          case 1:
+              for (let [name, llm] of MyLLMroot.mapMyLLMs)
+                  s += "<td onClick='LocalAIbaseline.MyLLMroot.showBaseLineFeature_llmID_featureID(\"" + llm.uniqueID + "\",\"" + id + "\")' class='table_with_all_llm_" + llm.uniqueID + "' style='background-color:" + llm.rowColor() + "'>" + (llm.numBaseLineFeaturesOfLLM(id) || "") + "</td>"
+              break
+          case 2:
+                for (let [name, modelOfMyLLM] of ModelNameLLM.mapNameToModels)
+                 {
+                const infoModelsOfLLM = modelOfMyLLM.infoOfBaseLineFeature(id)
+                s += "<td onClick='LocalAIbaseline.MyLLMroot.showBaseLineFeature_modelName_featureID(\""+modelOfMyLLM.name+"\",\""+id+"\")' class='numFeaturesOfLLM_modelOfMyLLM_" + modelOfMyLLM.name+"\"' class='numFeaturesOfLLM_modelOfMyLLM_" + modelOfMyLLM.name + "_" + id + "' style='" + (infoModelsOfLLM ? "cursor:pointer" : "") + "'>" + (infoModelsOfLLM || "") + "</td>"
+                }
+         break
+
+      }//switch
+      s += "</tr>"
+  }
   s += "</table>"
 
+  s += "<br> baseline availability "
+  for(let [name, color] of baselineStatusToColor)
+      s += "&nbsp; <b style='background-color:" + color + "'>&nbsp; " + name + " &nbsp;</b> &nbsp;"
+  s += " &nbsp; &nbsp; &nbsp; &nbsp; browser "
+  for(let [name, color] of statusToColor)
+      s += "&nbsp; <b style='background-color:" + color + "'>&nbsp; " + name + " &nbsp;</b> &nbsp;"
+
+
   return s
-  }
-else return "FAILED: baseline_status:limited"
 
 
 }
@@ -188,7 +260,7 @@ function menuSelectModelType(numView = 0, uuid = "") {
     s += "<br><br>"
     const titles = ["engines", "models"]
     for(let n = 0; n < titles.length; n++)
-        s += "<label> &nbsp; <input onClick='update_localAIbaseline_mainTable(" + n + ")' type='radio' "+ (numView === n ? "checked" : "") +" name='radios_engines_models' style='margin-bottom:6px'>&nbsp;" + TLtranslateFromTo(titles[n]) + "&nbsp;</label>"
+        s += "<label> &nbsp; <input onClick='window.LocalAIbaseline.update_localAIbaseline_mainTable(" + n + ")' type='radio' "+ (numView === n ? "checked" : "") +" name='radios_engines_models' style='margin-bottom:6px'>&nbsp;" + TLtranslateFromTo(titles[n]) + "&nbsp;</label>"
 
     if (numView === 0)
     {
@@ -357,6 +429,14 @@ class MyLLMroot
         return s
     }
 //----------------------------------------
+    numBaseLineFeaturesOfLLM(baselineFeatureID) {
+        let num = 0
+        for (let [name, model] of this.models)
+            if (model.mapBaselineFeatures.get(baselineFeatureID))
+                num++
+        return num
+    }
+//----------------------------------------
     numModelsOfLLM(modelOfMyLLM) {
         let num = 0
         for (let [name, model] of this.models)
@@ -428,6 +508,16 @@ static calculate_llmID_modelName(llm_uniqueID, modelOfMyLLM_name)
         s += "</table>"
         showPopoverWithContent(s)
     }
+}
+//----------------------------------------
+static async showBaseLineFeature_llmID_featureID(llm_uniqueID, baselineFeatureID)
+{
+alert("under construction")
+}
+//----------------------------------------
+static async showBaseLineFeature_modelName_featureID(modelName, baselineFeatureID)
+{
+alert("under construction")
 }
 //----------------------------------------
 static async calculateMenu_llm_model(llm_uniqueID, modelOfMyLLM_id)
@@ -795,9 +885,16 @@ class ModelNameLLM
     this.name = name
     this.company = company
     this.image = image
+    this.mapBaselineFeatures = new Map()
 
-     ModelNameLLM.mapNameToModels.set(name, this)
+    ModelNameLLM.mapNameToModels.set(name, this)
+
     }
+//------------------------------------------------------------
+infoOfBaseLineFeature(baselineFeatureID)
+{
+    return  this.mapBaselineFeatures.get(baselineFeatureID) ? "Y" : ""
+}
 //------------------------------------------------------------
     icon(height = "20px")
     {
@@ -873,6 +970,7 @@ class ModelOfMyLLMroot
         this.type = type
         this.family = family
         this.jsonParams = jsonParams
+        this.mapBaselineFeatures = new Map()
     }
 //-----------------------------------------------------------
 icon(height = "20px")
