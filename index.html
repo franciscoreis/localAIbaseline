@@ -33,16 +33,33 @@
 
         //IMPORTANT DOM ELEMENT ID: <div id="localAIbaselineFeaturesTable"></div>
         window.LocalAIbaseline.baselineTableWithFeaturesHTML()
-        //IMPORTANT DOM ELEMENT ID: <div id="localAIbaseline_mainTable"></div>
-        window.LocalAIbaseline.update_localAIbaseline_mainTable()
 
     }
 
-
+    async function await_import(file) //more flexibility (mignification, ...)
+    {
+    return await import (file)
+    }
     //implemented when needed
-    function TLtranslateFromTo(s)
+    function TLtranslateFromTo(s) //replace by your own
     {
         return s
+    }
+    function showHideSelector(selector, showNOThide)
+    {
+
+    }
+    function TLtranslateFromTo_removeFont(s) //replace by your own
+    {
+        return TLtranslateFromTo(s)
+    }
+    function showMessageOnSOSforDuration(s, miliseconds) //replace by your own
+    {
+        alert(s)
+    }
+    function showMessageErrorOnSOSforDuration(s, miliseconds) //replace by your own
+    {
+        showMessageOnSOSforDuration(s, miliseconds)
     }
 
 
@@ -58,13 +75,7 @@
     <img src="https://storage.googleapis.com/cdniverse/LocalAIbaseline/images/localaibaseline_logo_494x168.jpg" style="aspect-ratio:507/168;width:95%;max-width:450px">
     <br>
     <br>
-    <font style='font-size:22px;letter-spacing:5px'>browser compatibility grid</font>
-    <br>
-    <br>
-    <br>
     <div id="localAIbaselineFeaturesTable"></div>
-    <br><br>
-    <div id="localAIbaseline_mainTable"></div>
     <br>
     <br>
     <table style="width:95%;max-width:507px;border:1px solid #000"><tr><th>partner sites</th><th>use data</th><th>contribute</th></tr>
