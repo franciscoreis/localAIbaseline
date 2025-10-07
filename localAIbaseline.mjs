@@ -12,6 +12,7 @@ var loadingDuration = []
 var processingDuration = []
 var firstCharTime
 var firstCharDuration = []
+var last_baselineFeaturesAvailableToText
 
 var chatPlaces_obj = {temporaryResponse: function()
                 {
@@ -1363,8 +1364,9 @@ model_selected = llm_selected.models.get(modelOfMyLLM_id)
 
 let s = "<table style='width:100%'><tr><th style='width:1px'>" + llm_selected.icon() + "</th><th style='text-align:left'>"+ llm_selected.name +"</th><th>&nbsp;+&nbsp;</th><th style='text-align:right'>" + model_selected.name + "</th><th style='width:1px'>" + model_selected.icon("30px") + "</th></tr></table>"
 
+    last_baselineFeaturesAvailableToText = baselineFeaturesAvailableToText()
     s += "<center><table>"
-       + "<tr><td colspan=4>Browser Baseline Features<br><textarea style='width:300px;height:100px' disabled>" + baselineFeaturesAvailableToText() +"</textarea></td></tr>"
+       + "<tr><td colspan=4>Browser Baseline Features<br><textarea style='width:300px;height:100px' disabled>" + last_baselineFeaturesAvailableToText +"</textarea></td></tr>"
        + "<tr><th>timing</th><th>first</th><th>second</th><th>&nbsp;</th></tr>"
        + "<tr><td>Loading</td><td id='loadingDuration_0' style='text-align:right'>no data</td><td id='loadingDuration_1' style='text-align:right'>no data</td><td>&nbsp;</td></tr>"
        + "<tr><td>First char received</td><td id='firstCharDuration_0' style='text-align:right'>no data</td><td id='firstCharDuration_1' style='text-align:right'>no data</td><td>&nbsp;</td></tr>"
@@ -2190,14 +2192,14 @@ class MyChromeBuiltInAI extends MyLocalLLMroot {
             if (avail === 'unavailable')
                 return showMessageErrorOnSOSforDuration('Summarizer unavailable', 3000)
 
-            // Trigger model download on first use (needs user activation)
-            const selectorLoading = ".loading_info_myLLMs"
             try
             {
             this.summarizer = await Summarizer.create({
               type: 'key-points',    // "tldr" | "teaser" | "headline" also possible
               format: 'markdown',
               length: 'long',
+              expectedInputLanguages: ['en'],
+              outputLanguage: 'en',
               monitor(m) {m.addEventListener('downloadprogress', (e) => {
                         // e.loaded * 100
                 });
@@ -2205,8 +2207,9 @@ class MyChromeBuiltInAI extends MyLocalLLMroot {
             });
             this.alreadyLoaded = true
 
-                }
-            finally {
+            }
+            finally
+            {
                 // selectorLoading hide
             }
 
@@ -2854,13 +2857,19 @@ async function checkBaselineFeatures() {
 //---------------------------------
 static postDataToServer()
 {
-    BaseLineFeatures.post_LLM_Model_Type_arrDuration_arrloading_arrFirstChar_arrProcessing(llm_selected.uniqueID, model_selected.id,  ModelOfMyLLMroot.selectedModelType, loadingDuration, processingDuration,firstCharDuration)
+    BaseLineFeatures.post_LLM_Model_Type_arrDuration_arrloading_arrFirstChar_arrProcessing(
+        last_baselineFeaturesAvailableToText
+        , llm_selected.uniqueID, model_selected.id,  ModelOfMyLLMroot.selectedModelType
+        , loadingDuration, processingDuration,firstCharDuration)
 }
 //---------------------------------
-static post_LLM_Model_Type_arrDuration_arrloading_arrFirstChar_arrProcessing(
-    llm_uniqueID, modelOfMyLLM_id, selectedModelType
+static post_LLM_Model_Type_arrDuration_arrloading_arrFirstChar_arrProcessing(baseline_features
+    , llm_uniqueID, modelOfMyLLM_id, selectedModelType
     , loadingDuration, processingDuration, firstCharDuration)
 {
+    if(typeof baseline_features !== "string")
+        return showMessageErrorOnSOSforDuration("baseline_features must be a string")
+
     if(!llm_uniqueID)
         return showMessageErrorOnSOSforDuration("missing llmID")
     const llm = MyLLMroot.mapIDtoMyLLMs.get(llm_uniqueID)
@@ -2892,9 +2901,16 @@ static post_LLM_Model_Type_arrDuration_arrloading_arrFirstChar_arrProcessing(
 
     // The data you want to send
 const data = {
-  username: 'john.doe',
-  email: 'john.doe@example.com',
-  items: [1, 2, 3]
+          baseline_features: baseline_features
+        , llm_uniqueID: llm_uniqueID
+        , modelOfMyLLM_id: modelOfMyLLM_id
+        , selectedModelType: selectedModelType
+        , loadingDuration_0: loadingDuration[0]
+        , processingDuration_0: processingDuration[0]
+        , firstCharDuration_0: firstCharDuration[0]
+        , loadingDuration_1: loadingDuration[1]
+        , processingDuration_1: processingDuration[1]
+        , firstCharDuration_1: firstCharDuration[1]
 };
 
 fetch(url, {
@@ -2903,7 +2919,8 @@ fetch(url, {
 
   // Additional headers
   headers: {
-    'Content-Type': 'application/json'
+    //'Content-Type': 'application/json' //requires pre-flight
+      'Content-Type': 'application/x-www-form-urlencoded' //does not do  pre-flight
   },
 
   // Body of the request, must be a string
